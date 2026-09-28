@@ -9,7 +9,7 @@
 - **LLM comparative judgment** (`gl.eq_principle.prompt_comparative`) — validators agree on which documents are most semantically similar to a query
 
 **Contract:** `0xfCeecC68aF79bf0c63aa58B0916dDbBBeD5E4afA` (StudioNet)  
-**Frontend:** https://temporary-turbo-fiddle-j1uf2rd.vercel.app  
+**Frontend:** https://frontend-qfn5q5kg7-dikacreams-projects.vercel.app (production)  
 **Repo:** https://github.com/DikaCream/vector-store
 
 ---
