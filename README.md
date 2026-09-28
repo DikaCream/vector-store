@@ -3,7 +3,7 @@
 Text similarity registry on GenLayer. Users submit documents as plain text or fetch from public URLs. Queries return the most semantically similar documents using LLM comparative judgment — no embeddings, no off-chain index. Runs on StudioNet today.
 
 - App: https://frontend-steel-delta-23.vercel.app
-- Contract on StudioNet: `0xfCeecC68aF79bf0c63aa58B0916dDbBBeD5E4afA`
+- Contract on StudioNet: `0xC63bc01CfB0296287Cf3dc4Ec508989099661391`
 - Repo: https://github.com/DikaCream/vector-store
 
 ## How it works

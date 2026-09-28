@@ -8,7 +8,7 @@ GenLayer primitives used:
 - Web text fetch + equivalence principle (gl.nondet.web.render + gl.eq_principle.prompt_comparative) — deterministic fetch of public page content with validator consensus on extracted text
 - LLM comparative judgment (gl.eq_principle.prompt_comparative) — validators agree on which documents are most semantically similar to a query
 
-**Contract:** 0xfCeecC68aF79bf0c63aa58B0916dDbBBeD5E4afA (StudioNet)
+**Contract:** 0xC63bc01CfB0296287Cf3dc4Ec508989099661391 (StudioNet)
 **Frontend:** https://frontend-steel-delta-23.vercel.app (production)
 **Repo:** https://github.com/DikaCream/vector-store
 
