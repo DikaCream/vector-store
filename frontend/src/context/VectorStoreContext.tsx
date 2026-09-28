@@ -140,7 +140,7 @@ export function VectorStoreProvider({ children }: { children: ReactNode }) {
       const { getWalletClient } = await import("../lib/client");
       const { writeContract, waitForTransaction } = await import("../lib/contract");
       const client = await getWalletClient();
-      const hash = await writeContract(client, "submitFromUrl", [url]);
+      const hash = await writeContract(client, "submit_from_url", [url]);
       addToast("Fetching and submitting...", "info");
       await waitForTransaction(hash);
       addToast("URL submitted!", "success");

@@ -3,8 +3,8 @@ import { CHAIN, CONTRACT_ADDRESS } from "../config";
 
 const ABI = parseAbi([
   "function submit(string) external returns (uint256)",
-  "function submitFromUrl(string) external returns (uint256)",
-  "function search(string, uint256) external view returns (tuple(uint256 document_id, uint256 similarity_score, string reason)[])",
+  "function submit_from_url(string) external returns (uint256)",
+  "function search(string, uint256) external returns (tuple(uint256 document_id, uint256 similarity_score, string reason)[])",
   "function getDocument(uint256) external view returns (tuple(uint256 id, string content, address submitter, uint256 timestamp))",
   "function listDocuments() external view returns (tuple(uint256 id, string content, address submitter, uint256 timestamp)[])",
   "function count() external view returns (uint256)",
