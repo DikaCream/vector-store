@@ -90,28 +90,47 @@ export function VectorStoreProvider({ children }: { children: ReactNode }) {
       setSearchResults([]);
       return;
     }
+    if (!account) {
+      addToast("Connect wallet first", "error");
+      return;
+    }
     try {
       setLoading(true);
-      const { readContract } = await import("../lib/contract");
-      const results = await readContract<any[]>("search", [query, BigInt(topK)]);
-      setSearchResults(
-        results.map((r) => ({
-          document_id: Number(r.document_id),
-          id: Number(r.document_id),
-          similarity_score: Number(r.similarity_score),
-          reason: r.reason,
-          content: r.content || "",
-          submitter: r.submitter || "",
-          timestamp: Number(r.timestamp || 0),
-        }))
+      const { getWalletClient } = await import("../lib/client");
+      const { writeContractAndDecode, readContract } = await import("../lib/contract");
+      const client = await getWalletClient();
+      
+      // Call search as a write transaction and decode return value
+      const rawResults = await writeContractAndDecode<any[]>(
+        client,
+        "search",
+        [query, BigInt(topK)]
       );
+      
+      // For each result, fetch full document details
+      const fullResults = await Promise.all(
+        rawResults.map(async (r) => {
+          const doc = await readContract<any>("getDocument", [BigInt(r.document_id)]);
+          return {
+            document_id: Number(r.document_id),
+            id: Number(r.document_id),
+            similarity_score: Number(r.similarity_score),
+            reason: r.reason,
+            content: doc?.content || "",
+            submitter: doc?.submitter || "",
+            timestamp: Number(doc?.timestamp || 0),
+          };
+        })
+      );
+      
+      setSearchResults(fullResults);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
       addToast("Search failed", "error");
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, [account, addToast]);
 
   const submitText = useCallback(async (content: string) => {
     if (!account) throw new Error("Not connected");

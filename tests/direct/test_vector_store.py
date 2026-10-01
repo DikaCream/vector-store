@@ -108,5 +108,67 @@ class TestSubmitFromUrl:
             call(direct_vm, lambda: contract.submit_from_url(""), direct_alice)
 
 
+class TestBrowseAndSearchPath:
+    """Test the complete browse + search path:
+    - Submit documents
+    - Browse via list_documents
+    - Get individual document via get_document
+    - Search via write method (search)
+    - Verify search results match stored documents by fetching full documents
+    """
+
+    def test_browse_then_search(self, contract, direct_vm, direct_alice):
+        # Submit multiple documents
+        doc1_id = call(direct_vm, lambda: contract.submit("the quick brown fox jumps over the lazy dog"), direct_alice)
+        doc2_id = call(direct_vm, lambda: contract.submit("a completely different document about cats"), direct_alice)
+        doc3_id = call(direct_vm, lambda: contract.submit("another fox related document"), direct_alice)
+
+        # Browse: list all documents
+        all_docs = contract.list_documents()
+        assert len(all_docs) == 3
+
+        # Browse: get individual document
+        doc1 = contract.get_document(doc1_id)
+        assert doc1 is not None
+        assert doc1["id"] == doc1_id
+        assert "quick brown fox" in doc1["content"]
+
+        # Search: write method (search)
+        results = contract.search("fox", 2)
+        assert isinstance(results, list)
+        assert len(results) <= 2
+
+        # Verify search results match stored documents by fetching full documents
+        for result in results:
+            assert "document_id" in result
+            assert "similarity_score" in result
+            assert "reason" in result
+            assert 0 <= result["similarity_score"] <= 100
+
+            # Verify the result corresponds to an actual stored document
+            full_doc = contract.get_document(result["document_id"])
+            assert full_doc is not None
+            assert full_doc["id"] == result["document_id"]
+            # The matched document should contain content related to the query
+            assert "fox" in full_doc["content"].lower()
+
+    def test_search_empty_query_fails(self, contract, direct_vm, direct_alice):
+        call(direct_vm, lambda: contract.submit("test"), direct_alice)
+        with pytest.raises(Exception):
+            contract.search("", 3)
+
+    def test_search_clamps_top_k(self, contract, direct_vm, direct_alice):
+        for i in range(5):
+            call(direct_vm, lambda: contract.submit(f"doc {i}"), direct_alice)
+
+        # top_k=0 should clamp to 1
+        results = contract.search("doc", 0)
+        assert len(results) <= 1
+
+        # top_k=100 should clamp to 10
+        results = contract.search("doc", 100)
+        assert len(results) <= 10
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -108,9 +108,9 @@ class VectorStore(gl.Contract):
     def submit(self, content: str) -> u256:
         """Store a text document. Returns its ID."""
         if not content or not content.strip():
-            raise ValueError("content cannot be empty")
+            raise gl.vm.UserError("content cannot be empty")
         if len(content) > 10000:
-            raise ValueError("content too long (max 10000 chars)")
+            raise gl.vm.UserError("content too long (max 10000 chars)")
 
         doc_id = self.next_id
         self.next_id += 1
@@ -128,32 +128,33 @@ class VectorStore(gl.Contract):
     def search(self, query: str, top_k: u256 = 3) -> List[SearchResult]:
         """Find the most similar documents to the query using LLM judgment."""
         if not query or not query.strip():
-            raise ValueError("query cannot be empty")
+            raise gl.vm.UserError("query cannot be empty")
         if not self.documents:
             return []
 
         top_k_val = max(1, min(int(top_k), 10))
 
-        def _judge() -> List[SearchResult]:
-            # Build candidate list with local heuristic scores for the LLM context
-            candidates = []
-            q_norm = _normalize(query)
-            for doc in self.documents:
-                overlap = _word_overlap_ratio(q_norm, _normalize(doc.content))
-                candidates.append({
-                    "id": int(doc.id),
-                    "content": doc.content[:500] + ("..." if len(doc.content) > 500 else ""),
-                    "overlap_hint": round(overlap, 3),
-                })
-            # Sort by hint so the LLM sees best candidates first
-            candidates.sort(key=lambda x: x["overlap_hint"], reverse=True)
-            candidates = candidates[: min(top_k_val * 3, len(candidates))]
+        # Build candidate list with local heuristic scores for the LLM context
+        candidates = []
+        q_norm = _normalize(query)
+        for doc in self.documents:
+            overlap = _word_overlap_ratio(q_norm, _normalize(doc.content))
+            candidates.append({
+                "id": int(doc.id),
+                "content": doc.content[:500] + ("..." if len(doc.content) > 500 else ""),
+                "overlap_hint": round(overlap, 3),
+            })
+        # Sort by hint so the LLM sees best candidates first
+        candidates.sort(key=lambda x: x["overlap_hint"], reverse=True)
+        candidates = candidates[: min(top_k_val * 3, len(candidates))]
 
+        def _build_prompt() -> str:
+            """Leader function: builds the prompt for the similarity judge."""
             prompt = (
                 "You are a text similarity judge. Given a query and candidate documents, "
                 "return the top matches ranked by semantic similarity (meaning, not just words). "
                 "Output ONLY a JSON array of objects with fields: "
-                'document_id (int), similarity_score (0-100 int), reason (short string). '
+                "document_id (int), similarity_score (0-100 int), reason (short string). "
                 "Example: "
                 '[{"document_id": 1, "similarity_score": 85, "reason": "same topic and structure"}]\n\n'
                 f"Query: {query}\n\nCandidates:\n"
@@ -162,32 +163,31 @@ class VectorStore(gl.Contract):
                     for c in candidates
                 )
             )
+            return prompt
 
-            principle = (
-                "Two answers are equivalent if they select the same top documents in the same "
-                "order with comparable scores (\u00b115 points) and coherent reasons. Minor wording "
-                "differences in reasons are acceptable."
-            )
+        principle = (
+            "Two answers are equivalent if they select the same top documents in the same "
+            "order with comparable scores (\u00b115 points) and coherent reasons. Minor wording "
+            "differences in reasons are acceptable."
+        )
 
-            raw = gl.eq_principle.prompt_comparative(lambda: prompt, principle)
+        raw = gl.eq_principle.prompt_comparative(_build_prompt, principle)
 
-            try:
-                results = json.loads(str(raw))
-                if not isinstance(results, list):
-                    return []
-                out = []
-                for r in results[:top_k_val]:
-                    if isinstance(r, dict) and "document_id" in r:
-                        out.append(SearchResult(
-                            document_id=u256(int(r["document_id"])),
-                            similarity_score=u256(max(0, min(100, int(r.get("similarity_score", 0))))),
-                            reason=str(r.get("reason", ""))[:200],
-                        ))
-                return out
-            except Exception:
+        try:
+            results = json.loads(str(raw))
+            if not isinstance(results, list):
                 return []
-
-        return _judge()
+            out = []
+            for r in results[:top_k_val]:
+                if isinstance(r, dict) and "document_id" in r:
+                    out.append(SearchResult(
+                        document_id=u256(int(r["document_id"])),
+                        similarity_score=u256(max(0, min(100, int(r.get("similarity_score", 0))))),
+                        reason=str(r.get("reason", ""))[:200],
+                    ))
+            return out
+        except Exception:
+            return []
 
 
 # ---------- convenience: fetch text from URL and submit ----------
@@ -195,7 +195,7 @@ class VectorStore(gl.Contract):
     def submit_from_url(self, url: str) -> u256:
         """Fetch a public page as text and store it. Returns the document ID."""
         if not url or not url.strip():
-            raise ValueError("url cannot be empty")
+            raise gl.vm.UserError("url cannot be empty")
 
         def _fetch() -> str:
             return gl.nondet.web.render(url.strip(), mode="text")
@@ -208,6 +208,6 @@ class VectorStore(gl.Contract):
 
         text = gl.eq_principle.prompt_comparative(_fetch, principle)
         if not text or not str(text).strip():
-            raise ValueError("fetched page has no readable text")
+            raise gl.vm.UserError("fetched page has no readable text")
 
         return self.submit(str(text))
